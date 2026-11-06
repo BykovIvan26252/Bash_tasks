@@ -1,88 +1,83 @@
-#!/bin/bash
+#!/bin/bash                                                            
 
-PID_FILE="/tmp/myservice.pid"
+PID_FILE="/tmp/myservice.pid"                                          # Переменная с путем к файлу хранения PID процесса
 
-# Возвращает true, если процесс существует, и false, если нет
-is_running() {
-    if [ -f "$PID_FILE" ]; then
-        local pid
-        pid=$(cat "$PID_FILE")
-        # Проверяем существование процесса
-        if kill -0 "$pid" 2>/dev/null; then
-            return 0
-        fi
-    fi
-    return 1
-}
+is_running() {                                                         # Функция проверки — запущен ли сервис сейчас
+    if [ -f "$PID_FILE" ]; then                                        # Если PID-файл существует и является обычным файлом
+        local pid                                                      # Объявление локальной переменной pid для функции
+        pid=$(cat "$PID_FILE")                                         # Чтение ID процесса из файла в переменную pid
+        if kill -0 "$pid" 2>/dev/null; then                            
+            return 0                                                   # Если процесс существует, возвращает код 0 (true)
+        fi                                                             
+    fi                                                                 
+    return 1                                                           # Если процесса или файла нет, возвращает код 1 (false)
+}                                                                      
 
-start() {
-    if is_running; then
-        local pid
-        pid=$(cat "$PID_FILE")
-        echo "Уже запущен (PID $pid)"
-    else
-        # Запуск имитации сервиса в фоне
-        sleep 3600 &
-        local pid=$!
-        echo "$pid" > "$PID_FILE"
-        echo "Запущен (PID $pid)"
-    fi
-}
+start() {                                                              # Функция для запуска сервиса
+    if is_running; then                                                
+        local pid                                                      
+        pid=$(cat "$PID_FILE")                                         # Чтение текущего PID из файла конфигурации
+        echo "Уже запущен (PID $pid)"                                  
+    else                                                               
+        sleep 3600 &                                                   # Запуск ожидания на 1 час в фоне для имитации сервиса
+        local pid=$!                                                   # Сохранение PID последнего фонового процесса
+        echo "$pid" > "$PID_FILE"                                      # Запись полученного PID в конфигурационный файл
+        echo "Запущен (PID $pid)"                                      # Вывод подтверждения об успешном запуске в консоль
+    fi                                                                 
+}                                                                      
 
-stop() {
-    if [ ! -f "$PID_FILE" ]; then # Если файла нет
-        echo "Сервис не запущен (PID-файл отсутствует)"
-    else
-        local pid
-        pid=$(cat "$PID_FILE")
+stop() {                                                               # Функция для остановки сервиса
+    if [ ! -f "$PID_FILE" ]; then                                      # Если файла конфигурации (PID-файла) не существует
+        echo "Сервис не запущен (PID-файл отсутствует)"                
+    else                                                               # Если PID-файл обнаружен на диске
+        local pid                                                      
+        pid=$(cat "$PID_FILE")                                         # Чтение ID процесса из файла конфигурации
         
-        if kill -0 "$pid" 2>/dev/null; then # Команда kill -0 проверяет, существует ли процесс
-            kill "$pid"
-            rm -f "$PID_FILE"
-            echo "Остановлен (PID $pid)"
-        else
-            echo "Процесс PID $pid не найден, но PID-файл существовал. Удаляем устаревший файл."
-            rm -f "$PID_FILE"
-        fi
-    fi
-}
+        if kill -0 "$pid" 2>/dev/null; then                            # Проверка: запущен ли этот процесс в данный момент
+            kill "$pid"                                                # Отправка стандартного сигнала завершения процессу
+            rm -f "$PID_FILE"                                          # Удаление PID-файла с диска для очистки состояния
+            echo "Остановлен (PID $pid)"                               
+        else                                                           
+            echo "Процесс PID $pid не найден. Удаляем устаревший файл."
+            rm -f "$PID_FILE"                                          
+        fi                                                             
+    fi                                                                 
+}                                                                      
 
-status() {
-    if is_running; then
+status() {                                                             # Функция проверки текущего статуса сервиса
+    if is_running; then                                                # Если проверка подтвердила активность процесса
         local pid
-        pid=$(cat "$PID_FILE")
-        echo "Работает (PID $pid)"
-    else
-        echo "Не работает"
-    fi
-}
+        pid=$(cat "$PID_FILE")                                         # Получение ID запущенного процесса из файла
+        echo "Работает (PID $pid)"                                     
+    else                                                               # Если проверка вернула false (процесс не найден)
+        echo "Не работает"                                             
+    fi                                                                 
+}                                                                      
 
-# Команда help
-help() {
-    echo "Использование: ./service.sh {start|stop|status|help}"
-    echo "  start  - запустить сервис"
-    echo "  stop   - остановить сервис"
-    echo "  status - проверить статус сервиса"
-    echo "  help   - показать эту справку"
-}
+help() {                                                               # Функция вывода справки по использованию скрипта
+    echo "Использование: ./service.sh {start|stop|status|help}"       
+    echo "  start  - запустить сервис"                                 
+    echo "  stop   - остановить сервис"                                
+    echo "  status - проверить статус сервиса"                         
+    echo "  help   - показать эту справку"                            
+}                                                                  
 
-# Логика выбора команд
-case "$1" in
-    start)
-        start
-        ;;
-    stop)
-        stop
-        ;;
-    status)
-        status
-        ;;
-    help|"")
-        help
-        ;;
-    *)
-        echo "Ошибка: Неизвестная команда '$1'" >&2
-        echo "Используйте ./service.sh help для вывода справки." >&2
-        exit 1
-        ;;
-esac
+case "$1" in                                                           # Начало анализа первого переданного аргумента ($1)
+    start)                                                            
+        start                                                         
+        ;;                                                           
+    stop)                                                            
+        stop                                                         
+        ;;                                                           
+    status)                                                          
+        status                                                       
+        ;;                                                           
+    help|"")                                                         
+        help                                                         
+        ;;                                                          
+    *)                                                                 # Для любого другого некорректного аргумента
+        echo "Ошибка: Неизвестная команда '$1'" >&2                    # Вывод ошибки в поток стандартных ошибок (stderr)
+        echo "Используйте ./service.sh help для вывода справки." >&2   
+        exit 1                                                         
+        ;;                                                             
+esac                                                                   
